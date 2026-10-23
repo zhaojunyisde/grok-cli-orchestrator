@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Orchestrator desk</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="top">
+        <div>
+          <p class="eyebrow">grok-cli-orchestrator</p>
+          <h1>Orchestrator desk</h1>
+          <p class="lede">You talk only to the orchestrator. It routes each message to a worker session.</p>
+        </div>
+        <div class="top-meta">
+          <span id="mode" class="pill">connecting</span>
+          <span id="conn" class="conn">connecting</span>
+        </div>
+      </header>
+      <main>
+        <section class="dialog" aria-label="Orchestrator dialog">
+          <div id="transcript" class="transcript" role="log" aria-live="polite">
+            <p class="empty">Connecting to the orchestrator…</p>
+          </div>
+          <div id="banner" class="banner" hidden aria-live="assertive"></div>
+          <form id="composer">
+            <label class="sr-only" for="input">Message the orchestrator</label>
+            <textarea
+              id="input"
+              rows="3"
+              placeholder="Ask for research, a sketch, or both."
+            ></textarea>
+            <p id="form-error" class="form-error" hidden></p>
+            <div class="composer-row">
+              <button
+                type="button"
+                id="sample"
+                class="ghost"
+                data-prompt="Research how ACP permission requests work, then sketch a tiny shell health check. Writing the file needs approval."
+              >
+                Research, then sketch a health check
+              </button>
+              <button type="submit" id="send">Send</button>
+            </div>
+          </form>
+        </section>
+        <section class="rail" aria-label="Worker sessions">
+          <div class="rail-head">
+            <h2>Worker sessions</h2>
+            <p>Each card is one child session. The subtask is what the orchestrator delegated.</p>
+          </div>
+          <div id="sessions" class="session-list"></div>
+        </section>
+      </main>
+    </div>
+    <noscript>
+      <p class="noscript">This desk needs JavaScript to stream worker sessions.</p>
+    </noscript>
+    <script src="/app.js"></script>
+  </body>
+</html>

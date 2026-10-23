@@ -9,6 +9,9 @@
   },
   "scripts": {
     "start": "tsx src/index.ts",
+    "ui": "tsx src/web_server.ts",
+    "ui:real": "tsx src/web_server.ts --real",
+    "ui:smoke": "tsx src/web_smoke.ts",
     "demo": "bash scripts/demo-mock.sh",
     "test": "tsx --test test/*.ts",
     "typecheck": "tsc --noEmit"
