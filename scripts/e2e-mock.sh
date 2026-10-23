@@ -121,5 +121,8 @@ expect_exit "missing-bin-real" 1 env GROK_BIN=/no/such/grok "$TSX" src/index.ts 
 # 8) missing binary with mock still works
 expect_exit "missing-bin-mock" 0 env GROK_BIN=/no/such/grok "$TSX" src/index.ts --mock --hitl allow --once "hi"
 
+# 9) web desk smoke: research session, coder session, HITL
+run_case "ui-smoke" npm run ui:smoke
+
 log "SUMMARY pass=$pass fail=$fail"
 [[ "$fail" -eq 0 ]]

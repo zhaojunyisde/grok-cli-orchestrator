@@ -39,6 +39,27 @@ test("parseArgs honors --mock and --hitl", () => {
   assert.throws(() => parseArgs(["--hitl", "maybe"]), /--hitl must be/);
 });
 
+test("createHitl can take a browser decider without a TTY", async () => {
+  const lines: string[] = [];
+  const hitl = createHitl({
+    decision: "ask",
+    sourceLabel: "ui",
+    out: (line) => lines.push(line),
+    interactive: false,
+    decideAsync: async () => "deny",
+  });
+  const decision = await hitl.decide({
+    worker: "coder",
+    title: "Write file",
+    options: [{ optionId: "allow-once", name: "Allow once", kind: "allow_once" }],
+  });
+  assert.equal(decision, "deny");
+  const text = lines.join("\n");
+  assert.match(text, /hitl> coder: Write file/);
+  assert.match(text, /decision: deny \(ui\)/);
+  assert.doesNotMatch(text, /\[a\]llow once/);
+});
+
 test("selectPermissionOption prefers allow_once and reject_once", () => {
   const options = [
     { optionId: "allow-always", name: "Always", kind: "allow_always" },

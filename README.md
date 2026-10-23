@@ -6,6 +6,8 @@ Workers are child processes. The orchestrator speaks [Agent Client Protocol](htt
 
 Mock mode runs the same client against a local ACP stand-in, so the demo does not need `grok` or an API key.
 
+A local web desk (`npm run ui`) is the same orchestrator in a browser: one chat box, and a session card for each worker.
+
 ## Architecture
 
 ```mermaid
@@ -51,11 +53,13 @@ you  ->  src/index.ts          the only human interface
             +--> src/hitl.ts        session/request_permission -> you
 ```
 
+The web desk uses that same path. `src/web_server.ts` drives one orchestrator and streams the turn to `ui/` over server-sent events. Permission clicks are posted back into the existing HITL callback.
+
 ## How this maps to a Grok Bot
 
 | Idea | In this repo |
 | --- | --- |
-| The human has one conversation | `npm start`. Workers have no terminal of their own. |
+| The human has one conversation | `npm start` or `npm run ui`. Workers have no terminal of their own. |
 | One orchestrator decides who works | `src/orchestrator.ts` asks the router, then calls workers in order. Each later worker sees the earlier notes. |
 | The orchestrator itself is a Grok CLI call | Real mode plans with one `grok -p` invocation per turn (`--output-format json`). Mock mode uses a keyword router so the desk still runs offline. |
 | Specialists / decision stations | `orchestrator.yaml`. Each entry is its own process, rules, working directory, and permission mode. |
@@ -66,7 +70,9 @@ you  ->  src/index.ts          the only human interface
 
 | Path | Role |
 | --- | --- |
-| `src/index.ts` | REPL, `--once`, and stdin |
+| `src/index.ts` | CLI REPL, `--once`, and stdin |
+| `src/web_server.ts` | Local web desk. Serves `ui/` and streams one orchestrator over SSE. |
+| `ui/` | Chat page: dialog, worker session cards, permission buttons |
 | `src/orchestrator.ts` | Plan, delegate, print the turn |
 | `src/router.ts` | `grok -p` planner and the keyword fallback |
 | `src/acp_client.ts` | JSON-RPC over a child process |
@@ -137,6 +143,37 @@ npm start
 `/workers` lists stations. `/quit` exits. A worker whose name is printed with `*` is the one that can stop and ask you.
 
 If `grok` is not on `PATH`, real mode stops and tells you to install it or pass `--mock`. It does not silently fake a model.
+
+## Web UI
+
+The browser desk talks to the same orchestrator as the CLI. You get one chat box. When a turn is routed, each worker from `orchestrator.yaml` is a session card with the subtask it was given, a status (`idle`, `running`, `waiting-permission`, `done`), and the text streaming from that child. If the coder asks for permission, Allow once, Deny, and Cancel are on the card and in the dialog. The page does not talk to workers directly.
+
+Mock mode is the default, so this does not need `grok` or `XAI_API_KEY`.
+
+```bash
+npm install
+npm run ui
+```
+
+Open http://127.0.0.1:4173. The suggested message is the research-then-code turn: the researcher card fills in, then the coder card waits on permission.
+
+Real mode, after `grok` is on `PATH` and authenticated (`grok login` or `XAI_API_KEY`):
+
+```bash
+npm run ui -- --real
+# or
+npm run ui:real
+```
+
+Other flags: `--port <n>` (or `PORT`), `--host <addr>` (default `127.0.0.1`), `--config <file>`, `--mock`.
+
+Check the bridge without a browser:
+
+```bash
+npm run ui:smoke
+```
+
+That runs one mock turn and checks that research lands on the researcher session, the sketch lands on the coder session, text streams for both, and a permission prompt is offered before the coder finishes. `npm test` runs the same check for allow, deny, and cancel.
 
 ## Demo transcript
 
@@ -238,11 +275,11 @@ npm test
 npm run typecheck
 ```
 
-`npm test` covers the router, the spawn arguments, permission outcomes, and a full mock turn (allow, deny, and always-approve). It also runs the CLI once. `npm run demo` checks the same transcript and exits 0.
+`npm test` covers the router, the spawn arguments, permission outcomes, and a full mock turn (allow, deny, and always-approve). It also runs the CLI once, and the web desk smoke (both sessions, streamed text, and allow / deny / cancel). `npm run demo` checks the CLI transcript and exits 0. `npm run ui:smoke` checks the web desk and exits 0.
 
 ## Limits
 
 - The mock coder always asks about `scripts/healthcheck.sh` on its first turn, then remembers the answer for that process. It does not decide which tool to call.
 - In real mode a permission prompt appears only when Grok actually tries a tool that is still in ask mode. Always-approve workers will not ask.
 - The planner does not keep a long-lived ACP session. Each turn is a new `grok -p`. A persistent planner process is the natural next step if the route should remember earlier turns without this app resending the worker list.
-- There is no desktop UI, sandbox editor, or multi-user session. One terminal, one person.
+- The web desk serves one local person and one orchestrator, and it runs one turn at a time. The CLI is still one terminal.

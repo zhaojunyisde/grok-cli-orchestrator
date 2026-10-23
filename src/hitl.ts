@@ -62,6 +62,11 @@ export function createHitl(options: {
   out: (line: string) => void;
   ask?: (question: string) => Promise<string>;
   interactive: boolean;
+  /**
+   * When `decision` is `ask`, resolve the prompt here instead of reading a TTY.
+   * The web desk uses this so Allow / Deny / Cancel come from the browser.
+   */
+  decideAsync?: (prompt: PermissionPrompt) => Promise<HitlDecision>;
 }): Hitl {
   return {
     async decide(prompt: PermissionPrompt): Promise<HitlDecision> {
@@ -75,14 +80,18 @@ export function createHitl(options: {
       let decision: HitlDecision;
       let source = options.sourceLabel;
       if (options.decision === "ask") {
-        if (!options.interactive || !options.ask) {
+        if (options.decideAsync) {
+          decision = await options.decideAsync(prompt);
+          source = options.sourceLabel;
+        } else if (!options.interactive || !options.ask) {
           throw new Error(
             "a worker asked for permission, but stdin is not a terminal. Re-run with --hitl allow or --hitl deny.",
           );
+        } else {
+          options.out("hitl> [a]llow once  [d]eny  [c]ancel");
+          decision = parseAnswer(await options.ask("hitl> "));
+          source = "prompt";
         }
-        options.out("hitl> [a]llow once  [d]eny  [c]ancel");
-        decision = parseAnswer(await options.ask("hitl> "));
-        source = "prompt";
       } else {
         decision = options.decision;
       }

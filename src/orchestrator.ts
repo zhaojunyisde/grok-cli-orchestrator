@@ -1,5 +1,5 @@
 import { deterministicPlan, planWithGrok } from "./router.js";
-import type { AppConfig, Hitl, Plan, WorkerTurn } from "./types.js";
+import type { AppConfig, Hitl, Plan, PlanStep, WorkerTurn } from "./types.js";
 import { grokAvailable, WorkerPool } from "./worker_pool.js";
 
 export function workerPrompt(userText: string, task: string, prior: WorkerTurn[]): string {
@@ -11,11 +11,22 @@ export function workerPrompt(userText: string, task: string, prior: WorkerTurn[]
   return [`Task: ${task}`, "", "User request:", userText, "", "Notes from earlier workers:", notes].join("\n");
 }
 
+export interface OrchestratorEvents {
+  onPlan?: (plan: Plan) => void;
+  onWorkerStart?: (step: PlanStep) => void;
+  onWorkerChunk?: (name: string, chunk: string) => void;
+  onWorkerDone?: (turn: WorkerTurn) => void;
+}
+
 export interface OrchestratorOptions {
   mock: boolean;
   verbose: boolean;
   /** Overrides config.router. Mock mode always uses the deterministic router. */
   router?: AppConfig["router"];
+  /** Optional listeners for a UI bridge. The CLI leaves this unset. */
+  events?: OrchestratorEvents;
+  /** Overrides the per-prompt ACP timeout. Includes time waiting on HITL. */
+  promptTimeoutMs?: number;
 }
 
 /**
@@ -26,6 +37,7 @@ export interface OrchestratorOptions {
 export class Orchestrator {
   private readonly pool: WorkerPool;
   private readonly routerMode: AppConfig["router"];
+  private readonly events: OrchestratorEvents | undefined;
 
   constructor(
     private readonly config: AppConfig,
@@ -34,6 +46,7 @@ export class Orchestrator {
     options: OrchestratorOptions,
   ) {
     this.routerMode = options.mock ? "deterministic" : (options.router ?? config.router);
+    this.events = options.events;
     this.pool = new WorkerPool({
       grokBin: config.grokBin,
       workers: config.workers,
@@ -41,6 +54,10 @@ export class Orchestrator {
       mock: options.mock,
       out,
       verbose: options.verbose,
+      ...(options.promptTimeoutMs !== undefined ? { promptTimeoutMs: options.promptTimeoutMs } : {}),
+      onChunk: (name, chunk) => {
+        this.events?.onWorkerChunk?.(name, chunk);
+      },
     });
   }
 
@@ -50,10 +67,13 @@ export class Orchestrator {
     const plan = await this.route(message);
     const chain = plan.steps.map((step) => step.worker).join(" -> ");
     this.out(`orchestrator> plan (${plan.source}): ${chain}`);
+    this.events?.onPlan?.(plan);
     const turns: WorkerTurn[] = [];
     for (const step of plan.steps) {
+      this.events?.onWorkerStart?.(step);
       const turn = await this.pool.prompt(step.worker, workerPrompt(message, step.task, turns));
       turns.push(turn);
+      this.events?.onWorkerDone?.(turn);
       const body = turn.text || `(no assistant text, stopReason=${turn.stopReason})`;
       this.out("");
       this.out(`${turn.name}>`);

@@ -92,4 +92,9 @@ Options
 
 Real mode spawns \`grok agent stdio\` per worker and, when grok is on PATH,
 plans with \`grok -p --output-format json\`. Auth is \`grok login\` or XAI_API_KEY.
+
+Web UI
+  npm run ui            Mock desk at http://127.0.0.1:4173
+  npm run ui -- --real  Same desk, spawning grok
+  npm run ui:smoke      One mock turn: research, code, and a permission prompt
 `;

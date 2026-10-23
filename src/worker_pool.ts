@@ -14,6 +14,13 @@ export interface PoolOptions {
   verbose: boolean;
   /** Override the mock ACP script. Tests use the repo copy. */
   mockScript?: string;
+  /** Fired for each assistant text chunk while a prompt is in flight. */
+  onChunk?: (worker: string, chunk: string) => void;
+  /**
+   * Budget for one `session/prompt`, including time spent waiting on HITL.
+   * The CLI uses a short mock budget. The web desk passes a longer one.
+   */
+  promptTimeoutMs?: number;
 }
 
 interface LiveWorker {
@@ -124,7 +131,7 @@ export class WorkerPool {
           sessionId: worker.sessionId,
           prompt: [{ type: "text", text }],
         },
-        this.options.mock ? 10_000 : 180_000,
+        this.options.promptTimeoutMs ?? (this.options.mock ? 10_000 : 180_000),
       );
       result = isRecord(raw) ? (raw as PromptResult) : {};
     } catch (error) {
@@ -282,7 +289,9 @@ export class WorkerPool {
     const update = isRecord(params.update) ? params.update : params;
     const kind = update.sessionUpdate;
     if (kind === "agent_message_chunk") {
-      worker.turnText += readTextContent(update.content);
+      const chunk = readTextContent(update.content);
+      worker.turnText += chunk;
+      if (chunk) this.options.onChunk?.(worker.config.name, chunk);
       return;
     }
     if ((kind === "tool_call" || kind === "tool_call_update") && this.options.verbose) {
