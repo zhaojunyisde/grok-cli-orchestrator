@@ -1,0 +1,42 @@
+# Workers the orchestrator can spawn. Each real-mode worker is one
+# `grok agent stdio` process. Mock mode spawns scripts/mock-grok-agent.mjs
+# with the same ACP handshake.
+
+grokBin: grok
+
+# auto: `grok -p` when the binary exists and mock mode is off, otherwise
+# the deterministic keyword router.
+# grok: always `grok -p` (fails if grok is missing).
+# deterministic: never calls grok.
+router: auto
+
+workers:
+  - name: researcher
+    # Sent as session/new _meta.agentProfile. Mock uses this name to pick a
+    # scripted persona. Real Grok resolves a profile name before
+    # --agent-profile; if session/new rejects an unknown name, delete this
+    # key and keep profileFile + rules.
+    profile: researcher
+    profileFile: agents/researcher.md
+    cwd: .
+    alwaysApprove: true
+    rules: |
+      Persona: researcher
+      You are the researcher. Gather facts, constraints, and options.
+      Do not edit files or run state-changing commands.
+      Answer in under 160 words.
+
+  - name: coder
+    profile: coder
+    profileFile: agents/coder.md
+    cwd: .
+    # Ask the human. The process is started without --always-approve, and
+    # session/new sets _meta.yoloMode to false so tool use can raise
+    # session/request_permission.
+    alwaysApprove: false
+    rules: |
+      Persona: coder
+      You are the coder. Propose the smallest concrete change.
+      When a file write or shell command needs approval, use the normal tool
+      permission flow and wait for the host.
+      Keep the reply short and include the snippet you would write.

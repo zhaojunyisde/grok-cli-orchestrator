@@ -1,0 +1,24 @@
+{
+  "name": "grok-cli-orchestrator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Minimal multi-agent desk: one orchestrator REPL routes work to Grok CLI workers over ACP.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "demo": "bash scripts/demo-mock.sh",
+    "test": "tsx --test test/*.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "yaml": "^2.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
